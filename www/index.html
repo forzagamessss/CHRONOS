@@ -292,6 +292,37 @@
             .top-bar-expressive .hero-title {
                 font-size: 32px !important;
             }
+            .player-sheet {
+                padding: 16px 24px !important;
+                overflow-y: hidden !important;
+                justify-content: space-between !important;
+            }
+            .player-header {
+                margin-bottom: 16px !important;
+            }
+            .player-art-container {
+                max-width: 32vh !important;
+                margin: 0 auto 16px !important;
+                border-radius: 36px !important;
+            }
+            .player-info-row {
+                margin-bottom: 12px !important;
+            }
+            .time-row {
+                margin-bottom: 20px !important;
+            }
+            .effect-strip {
+                margin-top: 8px !important;
+                margin-bottom: 8px !important;
+            }
+            .play-fab {
+                width: 72px !important;
+                height: 72px !important;
+                border-radius: 36px !important;
+            }
+            .play-fab span {
+                font-size: 32px !important;
+            }
         }
     </style>
 </head>
@@ -786,6 +817,40 @@
         }
         document.addEventListener('DOMContentLoaded', async () => {
             history.pushState({ overlay: 'base' }, '');
+
+            const progressBar = document.getElementById('progress-bar');
+            if (progressBar) {
+                const handleTouchSeek = (e) => {
+                    e.preventDefault();
+                    seekAudio(e);
+                };
+                progressBar.addEventListener('touchstart', handleTouchSeek, { passive: false });
+                progressBar.addEventListener('touchmove', handleTouchSeek, { passive: false });
+                progressBar.addEventListener('touchend', handleTouchSeek, { passive: false });
+            }
+
+            if (window.Capacitor) {
+                const { App } = window.Capacitor.Plugins;
+                if (App) {
+                    App.addListener('backButton', () => {
+                        const modal = document.getElementById('modal-backdrop');
+                        const settings = document.getElementById('settings-overlay');
+                        const player = document.getElementById('player-sheet');
+                        let closed = false;
+                        if (modal && modal.classList.contains('active')) {
+                            closeModal();
+                            closed = true;
+                        } else if (settings && settings.classList.contains('active')) {
+                            closeSettings();
+                            closed = true;
+                        } else if (player && player.classList.contains('active')) {
+                            closeFullscreenPlayer();
+                            closed = true;
+                        }
+                    });
+                }
+            }
+
             const savedTheme = localStorage.getItem('m3ex_theme') || 'blue';
             applyThemeColor(savedTheme);
             updateProfileUI();
@@ -1447,8 +1512,18 @@
             else if (repeatMode === 1) { btn.style.color = 'var(--md-sys-color-primary)'; icon.textContent = 'repeat'; showToast("Повтор списка"); } 
             else { btn.style.color = 'var(--md-sys-color-primary)'; icon.textContent = 'repeat_one'; showToast("Повтор трека"); }
         }
-        audio.addEventListener('play', () => { isPlaying = true; document.getElementById('mini-play-btn').textContent = 'pause'; document.getElementById('full-play-btn').textContent = 'pause'; });
-        audio.addEventListener('pause', () => { isPlaying = false; document.getElementById('mini-play-btn').textContent = 'play_arrow'; document.getElementById('full-play-btn').textContent = 'play_arrow'; });
+        audio.addEventListener('play', () => {
+            isPlaying = true;
+            document.getElementById('mini-play-btn').textContent = 'pause';
+            document.getElementById('full-play-btn').textContent = 'pause';
+            if (navigator.mediaSession) navigator.mediaSession.playbackState = 'playing';
+        });
+        audio.addEventListener('pause', () => {
+            isPlaying = false;
+            document.getElementById('mini-play-btn').textContent = 'play_arrow';
+            document.getElementById('full-play-btn').textContent = 'play_arrow';
+            if (navigator.mediaSession) navigator.mediaSession.playbackState = 'paused';
+        });
         audio.addEventListener('ended', () => {
             if (audio.dataset.sleepAfterTrack === 'true') { delete audio.dataset.sleepAfterTrack; audio.currentTime = 0; showToast('Таймер сна завершён'); return; }
             if (repeatMode === 2) { audio.currentTime = 0; audio.play(); } else if (repeatMode === 1 || currentIndex < currentQueue.length - 1 || isShuffle) skipTrack(1); else { isPlaying = false; document.getElementById('mini-play-btn').textContent = 'play_arrow'; document.getElementById('full-play-btn').textContent = 'play_arrow'; }
@@ -1461,9 +1536,42 @@
         });
         audio.addEventListener('loadedmetadata', () => { document.getElementById('time-total').textContent = formatTime(audio.duration); });
         function formatTime(seconds) { if(isNaN(seconds)) return "0:00"; const m = Math.floor(seconds / 60); const s = Math.floor(seconds % 60); return `${m}:${s < 10 ? '0' : ''}${s}`; }
-        function seekAudio(e) { if(!audio.duration) return; const bar = document.getElementById('progress-bar'); const percent = (e.clientX - bar.getBoundingClientRect().left) / bar.offsetWidth; audio.currentTime = Math.max(0, Math.min(1, percent)) * audio.duration; }
-        function setupMediaSession() { if(!navigator.mediaSession) return; navigator.mediaSession.setActionHandler('play', () => togglePlay()); navigator.mediaSession.setActionHandler('pause', () => togglePlay()); navigator.mediaSession.setActionHandler('nexttrack', () => skipTrack(1)); navigator.mediaSession.setActionHandler('previoustrack', () => skipTrack(-1)); }
-        function updateMediaSession() { if(navigator.mediaSession && currentQueue[currentIndex]) navigator.mediaSession.metadata = new MediaMetadata({title: currentQueue[currentIndex].title, artist: currentQueue[currentIndex].artist}); }
+        function seekAudio(e) {
+            if(!audio.duration) return;
+            const bar = document.getElementById('progress-bar');
+            let clientX = e.clientX;
+            if (e.touches && e.touches.length > 0) clientX = e.touches[0].clientX;
+            else if (e.changedTouches && e.changedTouches.length > 0) clientX = e.changedTouches[0].clientX;
+            const percent = (clientX - bar.getBoundingClientRect().left) / bar.offsetWidth;
+            audio.currentTime = Math.max(0, Math.min(1, percent)) * audio.duration;
+        }
+        function setupMediaSession() {
+            if(!navigator.mediaSession) return;
+            navigator.mediaSession.setActionHandler('play', () => togglePlay());
+            navigator.mediaSession.setActionHandler('pause', () => togglePlay());
+            navigator.mediaSession.setActionHandler('nexttrack', () => skipTrack(1));
+            navigator.mediaSession.setActionHandler('previoustrack', () => skipTrack(-1));
+            try {
+                navigator.mediaSession.setActionHandler('seekto', (details) => {
+                    if (details.fastSeek && 'fastSeek' in audio) audio.fastSeek(details.seekTime);
+                    else audio.currentTime = details.seekTime;
+                });
+            } catch (err) {}
+        }
+        function updateMediaSession() {
+            if(navigator.mediaSession && currentQueue[currentIndex]) {
+                const track = currentQueue[currentIndex];
+                const artwork = [];
+                if (track.coverUrl) {
+                    artwork.push({ src: track.coverUrl, sizes: '512x512', type: 'image/png' });
+                }
+                navigator.mediaSession.metadata = new MediaMetadata({
+                    title: track.title,
+                    artist: track.artist,
+                    artwork: artwork
+                });
+            }
+        }
         function openFullscreenPlayer() {
             document.getElementById('player-sheet').classList.add('active');
             document.getElementById('mini-player').classList.remove('visible');
