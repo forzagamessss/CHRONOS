@@ -1,0 +1,8 @@
+{
+  "appId": "com.chronos.musicplayer",
+  "appName": "CHRONOS",
+  "webDir": "www",
+  "server": {
+    "androidScheme": "https"
+  }
+}
