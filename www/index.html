@@ -287,9 +287,6 @@
         .startup-delay-4 { animation-delay: 0.28s; }
         @media (max-width: 480px) {
             .top-bar-expressive {
-                flex-direction: column;
-                align-items: flex-start;
-                gap: 16px;
                 padding-top: 24px !important;
             }
             .top-bar-expressive .hero-title {
@@ -320,6 +317,11 @@
                     <div class="art-pill" id="art-comp-1"></div>
                     <div class="art-circle-1" id="art-comp-2"></div>
                     <div class="art-circle-2" id="art-comp-3"></div>
+                </div>
+                <div id="home-empty-state" class="startup-animate startup-delay-3" style="display: none; margin: 40px 24px 0 24px; padding: 32px 24px; border: 2px dashed rgba(255,255,255,0.1); border-radius: 32px; text-align: center; cursor: pointer; transition: all 0.3s;" onclick="scanLocalDeviceForMusic()">
+                    <span class="material-symbols-outlined" style="font-size: 64px; color: var(--md-sys-color-primary); opacity: 0.8; margin-bottom: 16px;">folder_open</span>
+                    <div style="font-size: 16px; font-weight: 800; color: var(--md-sys-color-on-surface); margin-bottom: 8px;">Добавьте вашу музыку</div>
+                    <div style="font-size: 13px; color: var(--md-sys-color-on-surface-variant); line-height: 1.5;">Нажмите, чтобы просканировать память телефона и автоматически загрузить аудиофайлы</div>
                 </div>
             </div>
             <div class="section-title startup-animate startup-delay-3">Часто слушаете</div>
@@ -1144,14 +1146,25 @@
                 subtitle.textContent = "На основе вашей библиотеки";
             }
             const artComp = document.querySelector('.art-composition');
-            if (artComp) {
-                if (tracksWithArt.length > 0) {
+            const emptyState = document.getElementById('home-empty-state');
+            const recentTitle = document.querySelector('#screen-home .section-title');
+            
+            if (tracksWithArt.length > 0) {
+                if (artComp) {
                     artComp.style.opacity = '1';
                     artComp.style.pointerEvents = 'auto';
-                } else {
+                    artComp.style.display = 'block';
+                }
+                if (emptyState) emptyState.style.display = 'none';
+                if (recentTitle) recentTitle.style.display = 'block';
+            } else {
+                if (artComp) {
                     artComp.style.opacity = '0';
                     artComp.style.pointerEvents = 'none';
+                    artComp.style.display = 'none';
                 }
+                if (emptyState) emptyState.style.display = 'block';
+                if (recentTitle) recentTitle.style.display = 'none';
             }
         }
         function renderHome() {
