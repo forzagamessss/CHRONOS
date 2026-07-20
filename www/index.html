@@ -324,6 +324,25 @@
                 font-size: 32px !important;
             }
         }
+        @media (max-width: 480px) and (max-height: 900px) {
+            .expressive-hero { margin-top: 4px; }
+            .hero-title { font-size: 64px; }
+            .hero-play-btn { width: 84px; height: 84px; }
+            .hero-subtitle { margin-top: 10px; }
+            .art-composition { height: 280px; margin-top: 20px; }
+            .art-pill { width: 180px; height: 270px; border-radius: 90px; }
+            .art-circle-1 { width: 86px; height: 86px; }
+            .art-circle-2 { width: 100px; height: 100px; }
+            .section-title { margin-top: 20px; }
+        }
+        @media (max-width: 480px) and (max-height: 760px) {
+            .hero-title { font-size: 56px; }
+            .hero-play-btn { width: 72px; height: 72px; }
+            .art-composition { height: 230px; margin-top: 12px; }
+            .art-pill { width: 150px; height: 225px; border-radius: 75px; }
+            .art-circle-1 { width: 72px; height: 72px; }
+            .art-circle-2 { width: 84px; height: 84px; }
+        }
     </style>
 </head>
 <body>
@@ -809,6 +828,13 @@
                         };
                         await addToDB(track);
                         nativeTracks.push(track);
+                        if (!track.coverUrl) {
+                            metadataQueue.push({
+                                track,
+                                file: null,
+                                rawName: track.fileName || `${track.artist} - ${track.title}`
+                            });
+                        }
                     }
 
                     for (const oldTrack of previousNative.values()) {
@@ -817,6 +843,7 @@
 
                     localTracks = [...importedTracks, ...nativeTracks];
                     renderSearch(); renderLibrary(); renderHome(); updateCompositionArts();
+                    processNextInQueue();
                     showToast(`Найдено треков: ${nativeTracks.length}`);
                 } catch (error) {
                     console.error('Android media scan failed', error);
@@ -992,7 +1019,7 @@
             isProcessingQueue = false;
         }
         async function retryMetadataSearch() {
-            const tracksToRetry = localTracks.filter(t => !t.coverUrl && t.fileBlob);
+            const tracksToRetry = localTracks.filter(t => !t.coverUrl);
             if (tracksToRetry.length === 0) {
                 showToast("Все обложки уже загружены!");
                 return;
@@ -1000,8 +1027,8 @@
             showToast(`Повторный поиск обложек для ${tracksToRetry.length} треков...`);
             for (const track of tracksToRetry) {
                 document.querySelectorAll(`[data-id="${track.id}"] .list-title`).forEach(el => el.classList.add('pulse'));
-                const rawName = track.fileBlob.name || `${track.artist} - ${track.title}`;
-                metadataQueue.push({ track, file: track.fileBlob, rawName });
+                const rawName = track.fileBlob?.name || track.fileName || `${track.artist} - ${track.title}`;
+                metadataQueue.push({ track, file: track.fileBlob || null, rawName });
             }
             processNextInQueue();
         }
@@ -1092,7 +1119,10 @@
             const parsed = extractMetadataFromName(rawName);
             let meta = {};
             const processID3 = () => new Promise((resolve) => {
-                if (!window.jsmediatags) resolve(false);
+                if (!file || !window.jsmediatags) {
+                    resolve(false);
+                    return;
+                }
                 jsmediatags.read(file, {
                     onSuccess: async (tag) => {
                         if (tag.tags.title) meta.title = tag.tags.title; 
@@ -1107,7 +1137,11 @@
                 });
             });
             await processID3();
-            let apiMeta = await fetchMetadataForRawName(rawName, meta.artist, meta.title);
+            let apiMeta = await fetchMetadataForRawName(
+                rawName,
+                meta.artist || track.artist,
+                meta.title || track.title
+            );
             if (apiMeta) {
                 meta.title = apiMeta.title;   
                 meta.artist = apiMeta.artist; 
@@ -2140,7 +2174,7 @@
                 };
                 await addToDB(track);
                 localTracks.push(track);
-                metadataQueue.push({ track, fileBlob, rawName: fileBlob.name });
+                metadataQueue.push({ track, file: fileBlob, rawName: fileBlob.name });
                 renderLibrary();
                 renderHome();
                 updateCompositionArts();
