@@ -32,13 +32,9 @@ jobs:
         run: |
           npm install
 
-      - name: Create Web Distribution folder (www)
+      - name: Verify Web Assets
         run: |
-          mkdir -p www
-          cp index.html www/index.html
-          cp telegram.browser.js www/telegram.browser.js
-          cp jsmediatags.min.js www/jsmediatags.min.js
-          cp MaterialSymbolsOutlined.ttf www/MaterialSymbolsOutlined.ttf
+          ls -la www
 
       - name: Initialize Capacitor Android Project
         run: |

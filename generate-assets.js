@@ -11,7 +11,7 @@ async function generate() {
         process.exit(1);
     }
 
-    const src = 'icon-512.png';
+    const src = 'assets/icon-512.png';
     if (!fs.existsSync(src)) {
         console.error('Source icon-512.png not found!');
         process.exit(1);
