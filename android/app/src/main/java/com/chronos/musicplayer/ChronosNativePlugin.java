@@ -36,10 +36,8 @@ import org.json.JSONException;
 @CapacitorPlugin(
     name = "ChronosNative",
     permissions = {
-        @Permission(alias = "audio", strings = {
-            Manifest.permission.READ_MEDIA_AUDIO,
-            Manifest.permission.READ_EXTERNAL_STORAGE
-        }),
+        @Permission(alias = "mediaAudio", strings = { Manifest.permission.READ_MEDIA_AUDIO }),
+        @Permission(alias = "legacyStorage", strings = { Manifest.permission.READ_EXTERNAL_STORAGE }),
         @Permission(alias = "notifications", strings = {
             Manifest.permission.POST_NOTIFICATIONS
         })
@@ -73,7 +71,7 @@ public class ChronosNativePlugin extends Plugin {
     @PluginMethod
     public void scanMusic(PluginCall call) {
         if (!hasAudioPermission()) {
-            requestPermissionForAlias("audio", call, "audioPermissionCallback");
+            requestPermissionForAlias(audioPermissionAlias(), call, "audioPermissionCallback");
             return;
         }
         performScan(call);
@@ -134,6 +132,10 @@ public class ChronosNativePlugin extends Plugin {
             ? Manifest.permission.READ_MEDIA_AUDIO
             : Manifest.permission.READ_EXTERNAL_STORAGE;
         return ActivityCompat.checkSelfPermission(getContext(), permission) == PackageManager.PERMISSION_GRANTED;
+    }
+
+    private String audioPermissionAlias() {
+        return Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU ? "mediaAudio" : "legacyStorage";
     }
 
     private void performScan(PluginCall call) {

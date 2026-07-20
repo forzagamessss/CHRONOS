@@ -545,6 +545,7 @@
         let audioCtx, analyser, sourceNode, reverbNode, dryGain, wetGain, compressorNode, eqNodes = [];
         let currentEffect = 'normal';
         let lastNativeSyncSecond = -1;
+        let notificationPermissionRequested = false;
         const audio = document.getElementById('audio-element');
         const nativePlugin = () => window.Capacitor?.Plugins?.ChronosNative;
         const initDB = () => new Promise((resolve, reject) => {
@@ -890,7 +891,6 @@
                         else if (command === 'previous') skipTrack(-1);
                         else if (command === 'seek' && Number.isFinite(position)) audio.currentTime = position / 1000;
                     });
-                    native.requestNotificationPermission().catch(() => {});
                 }
             }
 
@@ -1511,7 +1511,9 @@
             const fullArt = document.getElementById('full-art'); fullArt.style.backgroundImage = artBg; fullArt.innerHTML = artHtmlFull;
             updateFavoriteUI(); document.getElementById('mini-player').classList.add('visible');
             if(audio.src) URL.revokeObjectURL(audio.src);
-            audio.src = track.sourceUri || URL.createObjectURL(track.fileBlob);
+            audio.src = track.sourceUri
+                ? window.Capacitor.convertFileSrc(track.sourceUri)
+                : URL.createObjectURL(track.fileBlob);
             if(!audioCtx) initAudioGraph();
             if(audioCtx && audioCtx.state === 'suspended') audioCtx.resume();
             audio.play().catch(e => showToast("Ошибка воспроизведения"));
@@ -1631,6 +1633,10 @@
             const native = nativePlugin();
             const track = currentQueue[currentIndex];
             if (!native || !track) return;
+            if (!notificationPermissionRequested && !audio.paused) {
+                notificationPermissionRequested = true;
+                native.requestNotificationPermission().catch(() => {});
+            }
             native.updatePlayback({
                 title: track.title || 'Без названия',
                 artist: track.artist || 'Неизвестный исполнитель',

@@ -36,10 +36,6 @@ jobs:
         run: |
           ls -la www
 
-      - name: Initialize Capacitor Android Project
-        run: |
-          npx cap add android
-
       - name: Generate Android Launcher Icons
         run: |
           node generate-assets.js
